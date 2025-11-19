@@ -1,7 +1,7 @@
 # cli.py
 import argparse
-from customer_excel_qb_sync import process_customers, read_customers_from_excel, get_qb_customers
-from reporting import write_json_report
+from quickbook_connector.customer_excel_qb_sync import process_customers, read_customers_from_excel, get_qb_customers
+from quickbook_connector.reporting import write_json_report
 
 def main():
     parser = argparse.ArgumentParser(description="QuickBooks Excel Sync CLI")

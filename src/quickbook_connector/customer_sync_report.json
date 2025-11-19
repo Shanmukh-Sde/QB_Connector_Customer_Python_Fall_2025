@@ -1,23 +1,14 @@
 {
     "status": "success",
-    "generated_at": "2025-10-20T18:50:23Z",
-    "excel_customers_count": 2,
-    "qb_customers_count": 1,
-    "added_customers": [
-        {
-            "name": "Air-O'Fallon",
-            "term": "Net 30",
-            "customer_id": 2
-        }
-    ],
+    "generated_at": "2025-11-17T14:19:03Z",
+    "same_customers": 3,
+    "added_customers": [],
     "conflicts": [
         {
             "excel_name": "ABC-Munster Indiana, INC. - Plant 1",
-            "qb_name": "ABC-Munster Indiana, INC. - Plant 1",
-            "term": "None",
+            "qb_name": "xyz",
             "customer_id": 1
         }
     ],
-    "error": null,
-    "only_in_qb": []
+    "error": null
 }

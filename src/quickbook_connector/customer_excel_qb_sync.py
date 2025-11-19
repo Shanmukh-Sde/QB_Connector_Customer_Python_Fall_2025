@@ -14,16 +14,15 @@ import xml.etree.ElementTree as ET
 
 @dataclass
 class Customer:
-    """Represents a customer with Name, Term, and ID."""
+    """Represents a customer with Name and ID."""
     name: str
-    term: str
     customer_id: int
 
 
 @dataclass
 class CustomerComparison:
     """Results of comparing Excel and QuickBooks customers."""
-    same_id_diff_data: list[tuple[str, str, str, int]]  # (excel_name, qb_name, excel_term, id)
+    same_id_diff_data: list[tuple[str, str, int]]  # (excel_name, qb_name, id)
     only_in_excel: list[Customer]  # Customers to add to QB
     only_in_qb: list[Customer]  # Customers in QB but not Excel
     matching_count: int  # Same ID & same data
@@ -37,22 +36,20 @@ def read_customers_from_excel(file_path: str) -> list[Customer]:
     Sheet name: 'customers'
     Columns:
       - A: Name
-      - B: Term
-      - C: ID
+      - B: ID
     """
     workbook = load_workbook(file_path, read_only=True)
     sheet = workbook["customers"]
     customers = []
 
     for row in sheet.iter_rows(min_row=2, values_only=True):
-        name, term, cid = row[0], row[1], row[2]
+        name, cid = row[0], row[1]
         if not name or not cid:
             continue
 
         try:
             cid_int = int(cid)
-            term_str = str(term).strip() if term else ""
-            customers.append(Customer(name=str(name).strip(), term=term_str, customer_id=cid_int))
+            customers.append(Customer(name=str(name).strip(), customer_id=cid_int))
         except (ValueError, TypeError):
             continue
 
@@ -86,7 +83,6 @@ def get_qb_customers() -> list[Customer]:
     <QBXMLMsgsRq onError="continueOnError">
         <CustomerQueryRq>
             <IncludeRetElement>Name</IncludeRetElement>
-            <IncludeRetElement>TermsRef</IncludeRetElement>
             <IncludeRetElement>Fax</IncludeRetElement>
         </CustomerQueryRq>
     </QBXMLMsgsRq>
@@ -98,7 +94,6 @@ def get_qb_customers() -> list[Customer]:
         for cust_ret in root.findall(".//CustomerRet"):
             name_elem = cust_ret.find("Name")
             fax_elem = cust_ret.find("Fax")
-            term_ref = cust_ret.find("TermsRef/FullName")
 
             if name_elem is not None and fax_elem is not None:
                 try:
@@ -106,7 +101,6 @@ def get_qb_customers() -> list[Customer]:
                     customers.append(
                         Customer(
                             name=name_elem.text.strip(),
-                            term=term_ref.text.strip() if term_ref is not None else "",
                             customer_id=cid,
                         )
                     )
@@ -128,12 +122,10 @@ def create_customers_batch_qbxml(customers: list[Customer]) -> str:
     requests = []
     for cust in customers:
         name = cust.name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        term = cust.term.strip() if cust.term and cust.term.strip().lower() != "none" else ""
         req = f"""        <CustomerAddRq>
             <CustomerAdd>
                 <Name>{name}</Name>
                 <Fax>{cust.customer_id}</Fax>
-                {'<TermsRef><FullName>' + term + '</FullName></TermsRef>' if term else ''}
             </CustomerAdd>
         </CustomerAddRq>"""
         requests.append(req)
@@ -192,12 +184,11 @@ def compare_customers(excel_customers: list[Customer], qb_customers: list[Custom
     for cid, excel_cust in excel_map.items():
         if cid in qb_map:
             qb_cust = qb_map[cid]
-            if (excel_cust.name.strip().lower() == qb_cust.name.strip().lower() and
-                excel_cust.term.strip().lower() == qb_cust.term.strip().lower()):
+            if excel_cust.name.strip().lower() == qb_cust.name.strip().lower():
                 matching_count += 1
             else:
                 same_id_diff_data.append(
-                    (excel_cust.name, qb_cust.name, excel_cust.term, cid)
+                    (excel_cust.name, qb_cust.name, cid)
                 )
         else:
             only_in_excel.append(excel_cust)
@@ -235,8 +226,8 @@ def process_customers(file_path: str) -> CustomerComparison:
 
     if comparison.same_id_diff_data:
         print(f"\nConflicts (same ID, different data): {len(comparison.same_id_diff_data)}")
-        for excel_name, qb_name, term, cid in comparison.same_id_diff_data:
-            print(f"  ID {cid}: Excel='{excel_name}' ({term}) vs QB='{qb_name}'")
+        for excel_name, qb_name, cid in comparison.same_id_diff_data:
+            print(f"  ID {cid}: Excel='{excel_name}' vs QB='{qb_name}'")
     else:
         print("\nNo conflicts found with same IDs")
 

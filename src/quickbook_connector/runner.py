@@ -10,11 +10,11 @@ from typing import Dict, List
 from datetime import datetime
 import json
 
-# ✅ Allow import from parent directory without changing structure
+# Allow import from parent directory without changing structure
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# ✅ Import core logic from customer_excel_qb_sync.py (which lives outside 'src')
-from customer_excel_qb_sync import (
+# Import core logic from customer_excel_qb_sync.py (which lives outside 'src')
+from quickbook_connector.customer_excel_qb_sync import (
     read_customers_from_excel,
     get_qb_customers,
     process_customers
@@ -22,12 +22,12 @@ from customer_excel_qb_sync import (
 
 DEFAULT_REPORT_NAME = "customer_sync_report.json"
 
-# ✅ Helper: timestamp formatter
+# Helper: timestamp formatter
 def iso_timestamp() -> str:
-    return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-# ✅ JSON writer
+# JSON writer
 def write_report(data: Dict[str, object], file_path: Path) -> None:
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
@@ -56,28 +56,31 @@ def run_customer_sync(
     report_payload: Dict[str, object] = {
         "status": "success",
         "generated_at": iso_timestamp(),
-        "excel_customers_count": 0,
-        "qb_customers_count": 0,
+        "same_customers": 0,
         "added_customers": [],
         "conflicts": [],
         "error": None,
     }
 
     try:
-        print("🔄 Reading customers from Excel...")
+        print("Reading customers from Excel...")
         excel_customers = read_customers_from_excel(Path(excel_file_path))
-        report_payload["excel_customers_count"] = len(excel_customers)
-
-        print("🔌 Fetching customers from QuickBooks...")
+        print("Fetching customers from QuickBooks...")
         qb_customers = get_qb_customers()
-        report_payload["qb_customers_count"] = len(qb_customers)
+        qb_map = {c.customer_id: c for c in qb_customers}
 
-        print("⚙️ Running comparison and sync process...")
+        same_customers_count = 0
+        for excel_cust in excel_customers:
+            if excel_cust.customer_id in qb_map:
+                same_customers_count += 1
+        report_payload["same_customers"] = same_customers_count
+
+        print("Running comparison and sync process...")
         result = process_customers(str(excel_file_path))
 
         # result should contain: added_customers, conflicts (adjust based on your actual return model)
         report_payload["added_customers"] = [
-    {"name": c.name, "term": c.term, "customer_id": c.customer_id}
+    {"name": c.name, "customer_id": c.customer_id}
     for c in result.only_in_excel
 ]
 
@@ -85,15 +88,9 @@ def run_customer_sync(
     {
         "excel_name": excel_name,
         "qb_name": qb_name,
-        "term": term,
         "customer_id": cid
     }
-    for (excel_name, qb_name, term, cid) in result.same_id_diff_data
-]
-
-        report_payload["only_in_qb"] = [
-    {"name": c.name, "term": c.term, "customer_id": c.customer_id}
-    for c in result.only_in_qb
+    for (excel_name, qb_name, cid) in result.same_id_diff_data
 ]
         
 
@@ -101,10 +98,10 @@ def run_customer_sync(
         report_payload["status"] = "error"
         report_payload["error"] = str(exc)
 
-    print(f"📁 Writing JSON report to: {report_path}")
+    print(f"Writing JSON report to: {report_path}")
     write_report(report_payload, report_path)
 
-    print("✅ Done.")
+    print("Done.")
     return report_path
 
 
@@ -112,6 +109,6 @@ if __name__ == "__main__":
     # Example usage (you can pass real values or hook this to CLI args)
     run_customer_sync(
         company_file_path="",  # leave empty to use currently open QuickBooks company file
-        excel_file_path="C:/Users/BoyaA/Desktop/QB_Connector_Customer_Python_Fall_2025/company_data.xlsx"
+        excel_file_path=r"C:\Users\NarraS\Documents\QB_Connector_Customer_Python_Fall_2025\company_data.xlsx"
     )
 

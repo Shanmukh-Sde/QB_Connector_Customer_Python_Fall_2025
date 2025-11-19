@@ -1,6 +1,6 @@
 # report_writer.py
 import json
-from customer_excel_qb_sync import CustomerComparison, Customer
+from quickbook_connector.customer_excel_qb_sync import CustomerComparison, Customer
 
 def write_json_report(comparison: CustomerComparison, excel_count: int, qb_count: int, output_file="customer_report.json"):
     report_data = {
@@ -16,17 +16,16 @@ def write_json_report(comparison: CustomerComparison, excel_count: int, qb_count
             {
                 "customer_id": cid,
                 "excel_name": excel_name,
-                "qb_name": qb_name,
-                "excel_term": term
+                "qb_name": qb_name
             }
-            for excel_name, qb_name, term, cid in comparison.same_id_diff_data
+            for excel_name, qb_name, cid in comparison.same_id_diff_data
         ],
         "only_in_excel": [
-            {"customer_id": c.customer_id, "name": c.name, "term": c.term}
+            {"customer_id": c.customer_id, "name": c.name}
             for c in comparison.only_in_excel
         ],
         "only_in_qb": [
-            {"customer_id": c.customer_id, "name": c.name, "term": c.term}
+            {"customer_id": c.customer_id, "name": c.name}
             for c in comparison.only_in_qb
         ]
     }
@@ -34,4 +33,4 @@ def write_json_report(comparison: CustomerComparison, excel_count: int, qb_count
     with open(output_file, "w") as f:
         json.dump(report_data, f, indent=4)
 
-    print(f"\n✅ JSON report created: {output_file}")
+    print(f"\nJSON report created: {output_file}")
